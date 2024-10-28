@@ -1,125 +1,121 @@
+import 'package:charset_converter/charset_converter.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:html/parser.dart' show parse;
+import 'dart:convert';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // Flutter 바인딩 초기화
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: SongSearch(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
+class SongSearch extends StatefulWidget {
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  _SongSearchState createState() => _SongSearchState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _SongSearchState extends State<SongSearch> {
+  List<Map<String, String>> songList = [];
+  final client = http.Client();
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+  /// Keyword 검색어
+  /// Type 검색 타입 (0: 통합검색, 1: 제목, 2: 가수, 4: 작사가, 8: 작곡가, 16: 곡 번호, 32: 가사)
+  /// Nation 국가 ("": 모든국가, "KOR": 국내가요, "ENG": 팝송, "JPN": 일본곡, "CHN": 중국곡)
+  /// strCond 0: 통합검색, 1: 단일검색
+  Future<void> searchSongs(String keyword, String type, String nation) async {
+    final url =
+        Uri.parse('https://www.tjmedia.com/tjsong/song_search_list.asp');
+    final response = await client.post(url, body: {
+      'strText': keyword,
+      'strType': type,
+      'natType': nation,
+      'strCond': '0',
+      'strSize01': '15',
+      'strSize02': '15',
+      'strSize03': '15',
+      'strSize04': '15',
+      'strSize05': '15',
+    }, headers: {
+      'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
     });
+
+    if (response.statusCode == 200) {
+      // 응답 바이트 데이터를 utf-8로 디코딩
+      final decodedBody = utf8.decode(response.bodyBytes, allowMalformed: true);
+      final document = parse(decodedBody);
+      final songElements = document.querySelectorAll('#BoardType1 tr');
+
+      List<Map<String, String>> songs = [];
+      for (var i = 1; i < songElements.length; i++) {
+        final songElement = songElements[i];
+        if (songElement.text.contains("검색 결과를 찾을 수 없습니다.")) continue;
+
+        final song = {
+          'test': songElement.text,
+          'songId': songElement.children[0].text.trim(),
+          'songTitle': songElement.children[1].text.trim(),
+          'singer': songElement.children[2].text.trim(),
+          'composer': songElement.children[3].text.trim(),
+          'lyricist': songElement.children[4].text.trim(),
+        };
+        songs.add(song);
+      }
+
+      setState(() {
+        songList = songs;
+      });
+    } else {
+      throw Exception('Failed to load songs');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: Text('Song Search'),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
+      body: Column(
+        children: [
+          TextField(
+            onSubmitted: (value) {
+              searchSongs(value, "1", "");
+            },
+            decoration: InputDecoration(
+              labelText: 'Search for a song',
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: songList.length,
+              itemBuilder: (context, index) {
+                final song = songList[index];
+                return ListTile(
+                  title: Text(song['songTitle'] ?? ''), // 곡명 표시
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('가수: ${song['singer']}'), // 가수 표시
+                      Text('곡번호: ${song['songId']}'), // 곡번호 표시
+                    ],
+                  ),
+                  hoverColor: Colors.yellow,
+                );
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
