@@ -13,7 +13,6 @@ dependencies:
   cupertino_icons: ^1.0.8
   http: ^1.2.2
   html: ^0.15.4
-  charset_converter: ^2.2.1
 
 dev_dependencies:
   flutter_test:

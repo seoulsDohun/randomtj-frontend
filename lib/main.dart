@@ -1,4 +1,3 @@
-import 'package:charset_converter/charset_converter.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' show parse;
@@ -6,25 +5,30 @@ import 'dart:convert';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Flutter 바인딩 초기화
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       home: SongSearch(),
     );
   }
 }
 
 class SongSearch extends StatefulWidget {
+  const SongSearch({super.key});
+
   @override
   _SongSearchState createState() => _SongSearchState();
 }
 
 class _SongSearchState extends State<SongSearch> {
-  List<Map<String, String>> songList = [];
+  Future<List<Map<String, String>>> songList = Future.value([]);
+  bool isLoading = false;
   final client = http.Client();
 
   /// Keyword 검색어
@@ -32,6 +36,9 @@ class _SongSearchState extends State<SongSearch> {
   /// Nation 국가 ("": 모든국가, "KOR": 국내가요, "ENG": 팝송, "JPN": 일본곡, "CHN": 중국곡)
   /// strCond 0: 통합검색, 1: 단일검색
   Future<void> searchSongs(String keyword, String type, String nation) async {
+    setState(() {
+      isLoading = true;
+    });
     final url =
         Uri.parse('https://www.tjmedia.com/tjsong/song_search_list.asp');
     final response = await client.post(url, body: {
@@ -72,9 +79,13 @@ class _SongSearchState extends State<SongSearch> {
       }
 
       setState(() {
-        songList = songs;
+        songList = Future.value(songs);
+        isLoading = false;
       });
     } else {
+      setState(() {
+        isLoading = false;
+      });
       throw Exception('Failed to load songs');
     }
   }
@@ -83,7 +94,7 @@ class _SongSearchState extends State<SongSearch> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Song Search'),
+        title: const Text('Song Search'),
       ),
       body: Column(
         children: [
@@ -91,25 +102,37 @@ class _SongSearchState extends State<SongSearch> {
             onSubmitted: (value) {
               searchSongs(value, "1", "");
             },
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: 'Search for a song',
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: songList.length,
-              itemBuilder: (context, index) {
-                final song = songList[index];
-                return ListTile(
-                  title: Text(song['songTitle'] ?? ''), // 곡명 표시
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('가수: ${song['singer']}'), // 가수 표시
-                      Text('곡번호: ${song['songId']}'), // 곡번호 표시
-                    ],
-                  ),
-                  hoverColor: Colors.yellow,
+            child: FutureBuilder(
+              future: songList,
+              builder: (context, snapshot) {
+                if (isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if ((!snapshot.hasData || snapshot.data!.isEmpty) &&
+                    !isLoading) {
+                  return const Center(child: Text('데이터가 없습니다'));
+                }
+                return ListView.builder(
+                  itemCount: snapshot.data!.length,
+                  itemBuilder: (context, index) {
+                    final song = snapshot.data![index];
+                    return ListTile(
+                      title: Text(song['songTitle'] ?? ''),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('가수: ${song['singer']}'), // 가수 표시
+                          Text('곡번호: ${song['songId']}'), // 곡번호 표시
+                        ],
+                      ),
+                      hoverColor: Colors.yellow,
+                    );
+                  },
                 );
               },
             ),
