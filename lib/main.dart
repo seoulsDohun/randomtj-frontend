@@ -27,7 +27,7 @@ class SongSearch extends StatefulWidget {
 }
 
 class _SongSearchState extends State<SongSearch> {
-  Future<List<Map<String, String>>> songList = Future.value([]);
+  List<Map<String, String>> songList = [];
   bool isLoading = false;
   final client = http.Client();
 
@@ -79,7 +79,7 @@ class _SongSearchState extends State<SongSearch> {
       }
 
       setState(() {
-        songList = Future.value(songs);
+        songList = songs;
         isLoading = false;
       });
     } else {
@@ -106,21 +106,21 @@ class _SongSearchState extends State<SongSearch> {
               labelText: 'Search for a song',
             ),
           ),
-          Expanded(
-            child: FutureBuilder(
-              future: songList,
-              builder: (context, snapshot) {
-                if (isLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if ((!snapshot.hasData || snapshot.data!.isEmpty) &&
-                    !isLoading) {
-                  return const Center(child: Text('데이터가 없습니다'));
-                }
+          Expanded(child: Builder(
+            builder: (context) {
+              if (isLoading) {
+                return const Center(
+                  child: CircularProgressIndicator(),
+                );
+              } else if (songList.isEmpty) {
+                return const Center(
+                  child: Text('검색된 노래가 없습니다.'),
+                );
+              } else {
                 return ListView.builder(
-                  itemCount: snapshot.data!.length,
+                  itemCount: songList.length,
                   itemBuilder: (context, index) {
-                    final song = snapshot.data![index];
+                    final song = songList[index];
                     return ListTile(
                       title: Text(song['songTitle'] ?? ''),
                       subtitle: Column(
@@ -134,9 +134,9 @@ class _SongSearchState extends State<SongSearch> {
                     );
                   },
                 );
-              },
-            ),
-          ),
+              }
+            },
+          )),
         ],
       ),
     );
