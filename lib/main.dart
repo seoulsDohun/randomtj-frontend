@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' show parse;
+import 'package:randomtj/model/sing_model.dart';
 import 'dart:convert';
+
+import 'package:randomtj/service/api_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Flutter 바인딩 초기화
@@ -30,6 +33,8 @@ class _SongSearchState extends State<SongSearch> {
   List<Map<String, String>> songList = [];
   bool isLoading = false;
   final client = http.Client();
+
+  Future<List<SingModel>> sings = ApiService.getKaraokeOpenApi();
 
   /// Keyword 검색어
   /// Type 검색 타입 (0: 통합검색, 1: 제목, 2: 가수, 4: 작사가, 8: 작곡가, 16: 곡 번호, 32: 가사)
